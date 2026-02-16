@@ -33,4 +33,10 @@ RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
 RUN mkdir -p /home/$USERNAME/.claude \
 	&& chown -R node:node /home/$USERNAME/.claude
 
+USER $USERNAME
+ARG BUILD_SCRIPTS=""
+RUN mkdir /home/$USERNAME/devcontainer-build-scripts
+COPY build-scripts/* /home/$USERNAME/devcontainer-build-scripts/
+RUN cd /home/$USERNAME/devcontainer-build-scripts/ && ./build.sh
+
 WORKDIR "/workspace"

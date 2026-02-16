@@ -2,6 +2,8 @@ services:
   workspace:
     build:
       context: .
+      args:
+        BUILD_SCRIPTS: "${BUILD_SCRIPTS}"
     volumes:
       - ..:/workspace:cached
       - ${CLAUDE_CONFIG_USER_DIR:-~/.claude}:/home/node/.claude
