@@ -25,15 +25,16 @@ RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/cmdhistory/.
 	&& chown -R $USERNAME /cmdhistory \
 	&& echo "$SNIPPET" >> "/home/$USERNAME/.bashrc"
 
+USER $USERNAME
+
 # Install Claude
 ARG CLAUDE_CODE_VERSION=latest
-RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
+RUN curl -fsSL https://claude.ai/install.sh | bash -s ${CLAUDE_CODE_VERSION}
 
 # For persisting claude config
-RUN mkdir -p /home/$USERNAME/.claude \
-	&& chown -R node:node /home/$USERNAME/.claude
+RUN mkdir -p /home/$USERNAME/.claude
 
-USER $USERNAME
+# Run selected build scripts
 ARG BUILD_SCRIPTS=""
 RUN mkdir /home/$USERNAME/devcontainer-build-scripts
 COPY build-scripts/* /home/$USERNAME/devcontainer-build-scripts/
