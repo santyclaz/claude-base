@@ -4,9 +4,9 @@ services:
       context: .
       args:
         BUILD_SCRIPTS: "${BUILD_SCRIPTS}"
+    environment:
+      TZ: "${TZ:-America/Los_Angeles}"
     volumes:
       - ..:/workspace:cached
       - ${CLAUDE_CONFIG_USER_DIR:-~/.claude}:/home/node/.claude
-    environment:
-      TZ: "${TZ:-America/Los_Angeles}"
     command: sleep infinity
