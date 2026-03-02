@@ -41,3 +41,4 @@ COPY build-scripts/* /home/$USERNAME/devcontainer-build-scripts/
 RUN cd /home/$USERNAME/devcontainer-build-scripts/ && ./build.sh
 
 WORKDIR "/workspace"
+
