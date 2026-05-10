@@ -1,4 +1,5 @@
 #!/bin/bash
+# Check `BUILD_SCRIPTS` env variable to see if any build-scripts should be run during container build
 
 echo "Checking for build scripts to run..."
 

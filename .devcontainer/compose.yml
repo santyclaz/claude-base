@@ -6,7 +6,11 @@ services:
         BUILD_SCRIPTS: "${BUILD_SCRIPTS}"
     environment:
       TZ: "${TZ:-America/Los_Angeles}"
+    # workaround for oauth callback bug
+    # https://github.com/anthropics/claude-code/issues/9376#issuecomment-3977483593
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=1
     volumes:
       - ..:/workspace:cached
-      - ${CLAUDE_CONFIG_USER_DIR:-~/.claude}:/home/node/.claude
+      - ${CLAUDE_CONFIG_USER_DIR:-~/.claude}:/home/eng-user/.claude
     command: sleep infinity

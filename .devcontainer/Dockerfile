@@ -1,22 +1,16 @@
-ARG VARIANT=24-trixie
-FROM node:${VARIANT}
+FROM debian:trixie
 
 ARG TZ
 ENV TZ="$TZ"
 
-ARG USERNAME=node
+RUN apt-get update && apt-get install -y --no-install-recommends \
+	curl \
+	ca-certificates \
+	adduser \
+	&& apt-get clean && rm -rf /var/lib/apt/lists/*
 
-ARG NPM_GLOBAL=/usr/local/share/npm-global
-
-# Add NPM global to PATH
-ENV PATH=${NPM_GLOBAL}/bin:${PATH}
-# Set NPM_global as prefix
-RUN npm config -g set prefix ${NPM_GLOBAL}
-
-# Install node packages
-ARG NODE_PACKAGES="eslint tslint-to-eslint-config typescript"
-RUN npm install -g ${NODE_PACKAGES} \
-	&& npm cache clean --force > /dev/null 2>&1
+ARG USERNAME=eng-user
+RUN adduser $USERNAME
 
 # For persisting bash history
 RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/cmdhistory/.bash_history" \

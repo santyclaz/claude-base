@@ -15,7 +15,7 @@
 	"features": {
 		"ghcr.io/devcontainers/features/common-utils:2": {
 			"installZsh": "true",
-			"username": "node",
+			"username": "eng-user",
 			"upgradePackages": "true"
 		}
 	},
@@ -43,16 +43,13 @@
 	"containerEnv": {
 		// workaround to prevent needing to reauth on container rebuild
 		// https://github.com/anthropics/claude-code/issues/1736#issuecomment-3113994138
-		"CLAUDE_CONFIG_DIR": "/home/node/.claude",
-		// workaround for oauth callback bug
-		// https://github.com/anthropics/claude-code/issues/9376#issuecomment-3773860151
-		"NODE_OPTIONS": "--dns-result-order=ipv4first"
+		"CLAUDE_CONFIG_DIR": "/home/eng-user/.claude"
 	},
 
 	// Command to run after the container is created
-	"postCreateCommand": "claude -v; node --version | (echo -n 'node ' && cat);",
+	"postCreateCommand": "claude -v",
 
 	// Set `remoteUser` to `root` to connect as root instead
 	// More info: https://aka.ms/dev-containers-non-root
-	"remoteUser": "node"
+	"remoteUser": "eng-user"
 }
