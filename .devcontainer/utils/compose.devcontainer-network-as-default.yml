@@ -1,0 +1,5 @@
+  # allow changing default network to a preexisting, external network via env variable
+networks:
+  default:
+    external: true
+    name: ${DEVCONTAINER_NETWORK:?DEVCONTAINER_NETWORK is not set}
