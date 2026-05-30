@@ -1,4 +1,6 @@
 #!/bin/bash
+# These utilities are primarily used to support the Docker-outside-of-Docker (DooD) setup
+# These aren't needed if it were a Docker-in-Docker (DinD) setup
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
