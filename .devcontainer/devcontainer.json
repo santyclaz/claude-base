@@ -17,6 +17,14 @@
 			"installZsh": "true",
 			"username": "eng-user",
 			"upgradePackages": "true"
+		},
+
+		// docker-outside-of-docker w/ rootless mode
+		// - https://github.com/testcontainers/testcontainers-java/discussions/9793
+		// - https://docs.docker.com/engine/security/rootless/
+		// - https://jpetazzo.github.io/2015/09/03/do-not-use-docker-in-docker-for-ci/
+		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+			"moby": false // moby no longer included in trixie
 		}
 	},
 
