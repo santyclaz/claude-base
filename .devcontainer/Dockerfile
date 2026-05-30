@@ -4,9 +4,10 @@ ARG TZ
 ENV TZ="$TZ"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-	curl \
-	ca-certificates \
 	adduser \
+	ca-certificates \
+	curl \
+	unzip \
 	&& apt-get clean && rm -rf /var/lib/apt/lists/*
 
 ARG USERNAME=eng-user
