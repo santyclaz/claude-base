@@ -1,0 +1,58 @@
+// nono profile
+// https://nono.sh/docs/cli/features/profile-authoring
+{
+  "extends": "claude-code",
+  "meta": {
+    "name": "claude-with-docker",
+    "description": "Profile that needs docker access including plugins (not tested with rootless docker)"
+  },
+  "groups": {
+    "include": [ ],
+    "exclude": [ ]
+  },
+  "commands": {
+    "allow": [ ],
+    "deny": [ ]
+  },
+  "workdir": {
+    "access": "readwrite"
+  },
+  "filesystem": {
+    "allow": [
+      // home dir
+      "$HOME/.docker",
+      // docker plugins
+      "/usr/libexec/docker/cli-plugins/",
+      "/usr/lib/docker/cli-plugins",
+      // NOTE: this is to workaround a seeming bug
+      // https://github.com/always-further/nono/issues/619
+      "/tmp"
+    ],
+    "read": [ ],
+    "write": [ ],
+    "allow_file": [ ],
+    "read_file": [ ],
+    "write_file": [ ],
+    "deny": [ ],
+    "bypass_protection": [
+      // home dir
+      // https://nono.sh/docs/cli/features/profiles-groups#overriding-a-deny-rule-for-a-specific-path
+      "$HOME/.docker"
+    ],
+    "suppress_save_prompt": [ ]
+  },
+  "network": {
+    "block": false,
+    "allow_domain": [ ],
+    "credentials": [ ],
+    "open_port": [ ],
+    "listen_port": [ ],
+    "custom_credentials": { }
+  },
+  "env_credentials": { },
+  "hooks": { },
+  "rollback": {
+    "exclude_patterns": [ ],
+    "exclude_globs": [ ]
+  }
+}

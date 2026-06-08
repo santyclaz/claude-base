@@ -19,12 +19,12 @@
 			"upgradePackages": "true"
 		},
 
-		// docker-outside-of-docker w/ rootless mode
-		// - https://github.com/testcontainers/testcontainers-java/discussions/9793
-		// - https://docs.docker.com/engine/security/rootless/
-		// - https://jpetazzo.github.io/2015/09/03/do-not-use-docker-in-docker-for-ci/
-		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
-			"moby": false // moby no longer included in trixie
+		// docker-in-docker (instead of docker-outside-of-docker) for better isolation
+		// - DooD provides access to the hosts' docker socket, which by default is run with root
+		// - DinD does require `--privileged` access, but this is partly mitigated by using `nono`
+		// - Another option is to do DinD but using `sysbox` runtime so `--privileged` is not needed
+		"ghcr.io/devcontainers/features/docker-in-docker:3": {
+			"moby": false // moby no longer included since debian:trixie
 		}
 	},
 
@@ -33,7 +33,15 @@
 		"vscode": {
 			// Add the IDs of extensions you want installed when the container is created
 			"extensions": [
-				"anthropic.claude-code",
+				// NOTE: Not including `anthropic.claude-code` extension since:
+				// 1. This dev-container is run in privileged mode due to docker-in-docker
+				// 2. There does't seem to be a way to lock down the extension version
+				//
+				// Currently the only other solution is to use sysbox-runc runtime for docker
+				// - https://github.com/nestybox/sysbox/blob/master/docs/user-guide/deploy.md
+
+				// "anthropic.claude-code",
+
 				"dbaeumer.vscode-eslint",
 				"esbenp.prettier-vscode"
 			]
@@ -46,16 +54,19 @@
 
 	"mounts": [
 		// Volume to preserve command history
-		"source=cmdhistory-${devcontainerId},target=/cmdhistory,type=volume"
+		"source=cmdhistory-${devcontainerId},target=/cmdhistory,type=volume",
+		// Volume to preserve user-scope config
+		// Comment this out to use claude config from own local machine as defined by `compose.claude.yml`
+		"source=claude-config-${devcontainerId},target=/home/eng-user/.claude,type=volume"
 	],
 	"containerEnv": {
-		// workaround to prevent needing to reauth on container rebuild
+		// Workaround to prevent needing to reauth on container rebuild
 		// https://github.com/anthropics/claude-code/issues/1736#issuecomment-3113994138
 		"CLAUDE_CONFIG_DIR": "/home/eng-user/.claude"
 	},
 
 	// Command to run after the container is created
-	"postCreateCommand": "./.devcontainer/utils/post-create.sh && claude -v",
+	"postCreateCommand": "claude -v",
 
 	// Set `remoteUser` to `root` to connect as root instead
 	// More info: https://aka.ms/dev-containers-non-root
