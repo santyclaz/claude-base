@@ -29,14 +29,14 @@ RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/cmdhistory/.
 
 USER $USERNAME
 
-# Install Claude
+# Install claude code
 ARG CLAUDE_CODE_VERSION=latest
 RUN curl -fsSL https://claude.ai/install.sh | bash -s ${CLAUDE_CODE_VERSION}
 
 # For persisting claude config
 RUN mkdir -p /home/$USERNAME/.claude
 
-# Install nono claude-code package, which also wires it into Claude Code as a single-plugin marketplace 
+# Install nono claude-code package, which also wires it into claude code as a single-plugin marketplace
 # https://nono.sh/docs/cli/features/managing-packs#initializing-project-files
 # https://nono.sh/docs/cli/clients/claude-code#what-%E2%80%9Cpull%E2%80%9D-actually-does
 RUN nono pull always-further/claude --init
@@ -46,8 +46,7 @@ COPY utils/claude-with-docker.jsonc /home/$USERNAME/.config/nono/profiles/
 # - Read access to `/vscode/vscode-server/bin` is to allow for ide integration (e.g. using vscode diff)
 RUN SNIPPET="alias claude='nono run --allow /workspace/ --read /vscode/vscode-server/bin/ --profile claude-with-docker -- claude'" \
 	&& echo "$SNIPPET" >> "/home/$USERNAME/.bashrc"
-# Pre-creating this since nono policy rules can't operate on things that don't exist yet
-RUN mkdir -p /home/$USERNAME/.docker
+# Pre-creating paths for nono policy enforcement in `utils/post-create.sh`
 
 # Run selected build scripts
 ARG BUILD_SCRIPTS=""

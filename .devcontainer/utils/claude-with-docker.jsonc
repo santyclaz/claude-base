@@ -23,10 +23,7 @@
       "$HOME/.docker",
       // docker plugins
       "/usr/libexec/docker/cli-plugins/",
-      "/usr/lib/docker/cli-plugins",
-      // NOTE: this is to workaround a seeming bug
-      // https://github.com/always-further/nono/issues/619
-      "/tmp"
+      "/usr/lib/docker/cli-plugins"
     ],
     "read": [ ],
     "write": [ ],
