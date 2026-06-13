@@ -30,7 +30,12 @@
     "allow_file": [ ],
     "read_file": [ ],
     "write_file": [ ],
-    "deny": [ ],
+    "deny": [
+      // prevent ide integration (e.g. using vscode diff)
+      // currently no way to safely lock-down claude-code vscode extension
+      // if you really want to use, allow read access to this path
+      "/vscode/vscode-server/bin"
+    ],
     "bypass_protection": [
       // home dir
       // https://nono.sh/docs/cli/features/profiles-groups#overriding-a-deny-rule-for-a-specific-path

@@ -43,8 +43,7 @@ RUN nono pull always-further/claude --init
 # Add nono profile that extends claude-code profile with docker support
 COPY utils/claude-with-docker.jsonc /home/$USERNAME/.config/nono/profiles/
 # Override `claude` command to automatically run with `nono` and allowing r+w access to /workspace
-# - Read access to `/vscode/vscode-server/bin` is to allow for ide integration (e.g. using vscode diff)
-RUN SNIPPET="alias claude='nono run --allow /workspace/ --read /vscode/vscode-server/bin/ --profile claude-with-docker -- claude'" \
+RUN SNIPPET="alias claude='nono run --allow /workspace/ --profile claude-with-docker -- claude'" \
 	&& echo "$SNIPPET" >> "/home/$USERNAME/.bashrc"
 # Pre-creating paths for nono policy enforcement in `utils/post-create.sh`
 
