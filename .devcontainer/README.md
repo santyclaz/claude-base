@@ -32,17 +32,29 @@ Claude Code runs wrapped in [nono](https://nono.sh/), which enforces filesystem 
 policies at runtime. The `claude` command is aliased to:
 
 ```sh
-nono run --allow /workspace/ --read /vscode/vscode-server/bin/ --profile claude-with-docker -- claude
+NONO_COMPOSE_TMPDIR=/tmp/nono-compose/ nono run --allow /workspace/ --allow /tmp/nono-compose/ --allow ~/.nono-bin/ --profile claude-with-docker -- claude
 ```
 
 - **`/workspace/`** — read+write access to your project files.
-- **`/vscode/vscode-server/bin/`** — read-only access for IDE integrations (e.g. VS Code diff).
+- **`/tmp/nono-compose/`** — read+write scratch space used by the `docker compose` TMPDIR shim (see below).
+- **`~/.nono-bin/`** — read+write access to the passthrough `docker` binary shim.
 - **`claude-with-docker` profile** — extends the built-in `claude-code` nono pack with additional
   access needed for Docker operations (`$HOME/.docker`, Docker CLI plugin paths). The profile lives
-  at `utils/claude-with-docker.jsonc`; edit it to adjust what Claude Code can access.
+  at `utils/claude-with-docker.jsonc`; edit it to adjust what Claude Code can access. Note that the
+  profile explicitly **denies** `/vscode/vscode-server/bin` to prevent the VS Code IDE integration
+  from running outside the sandbox.
 
 > The `anthropic.claude-code` VS Code extension is intentionally **not** installed — it would run
 > Claude Code outside the nono sandbox. Use the `claude` CLI instead.
+
+### docker compose TMPDIR shim
+
+`docker compose` writes temporary files to `/tmp` by default
+([upstream issue](https://github.com/docker/compose/issues/4137)), which nono blocks. To work
+around this, a passthrough `docker` binary is placed at `~/.nono-bin/docker` (ahead of
+`/usr/bin/docker` on `PATH`). When invoked as `docker compose`, it re-executes the real Docker CLI
+with `TMPDIR` set to `$NONO_COMPOSE_TMPDIR` (`/tmp/nono-compose/`), which is an allowed path. All
+other `docker` subcommands pass through unchanged.
 
 ## Adding a build script
 
@@ -91,11 +103,12 @@ If a Claude Code tool call is blocked by nono, a policy error is printed to the 
 investigate or relax the policy:
 
 - Review `utils/claude-with-docker.jsonc` and expand the relevant `filesystem.allow` list.
-- The `post-create.sh` script pre-creates `~/.docker` and `/tmp/claude-$UID` so nono can apply
-  policy to them. If those directories are missing (e.g. after a partial setup), recreate them:
+- The `post-create.sh` script pre-creates `~/.docker`, `/tmp/claude-$UID`, and `/tmp/nono-compose`
+  so nono can apply policy to them. If those directories are missing (e.g. after a partial setup),
+  recreate them:
 
 ```sh
-mkdir -p ~/.docker /tmp/claude-$UID
+mkdir -p ~/.docker /tmp/claude-$UID /tmp/nono-compose
 ```
 
 ### DinD: container fails to start

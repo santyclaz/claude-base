@@ -6,3 +6,4 @@
 # 2. prefer to keep all the related
 mkdir -p /home/$USER/.docker
 mkdir -p /tmp/claude-$UID
+mkdir -p /tmp/nono-compose

@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	ca-certificates \
 	curl \
 	unzip \
+	make \
 	&& apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install nono for locking down running of claude
@@ -43,7 +44,13 @@ RUN nono pull always-further/claude --init
 # Add nono profile that extends claude-code profile with docker support
 COPY utils/claude-with-docker.jsonc /home/$USERNAME/.config/nono/profiles/
 # Override `claude` command to automatically run with `nono` and allowing r+w access to /workspace
-RUN SNIPPET="alias claude='nono run --allow /workspace/ --profile claude-with-docker -- claude'" \
+# - `NONO_COMPOSE_TMPDIR=/tmp/nono-compose` is a workaround so claude can run docker compose w/o granting
+#   read access to the entirety of `/tmp`. This works in conjunction with `nono-docker-compose.sh` below.
+RUN SNIPPET="alias claude='NONO_COMPOSE_TMPDIR=/tmp/nono-compose/ nono run --allow /workspace/ --allow /tmp/nono-compose/ --allow ~/.nono-bin/ --profile claude-with-docker -- claude'" \
+	&& echo "$SNIPPET" >> "/home/$USERNAME/.bashrc"
+# Add passthrough docker binary that runs `docker compose` with an overridden TMPDIR
+COPY utils/nono-docker-compose.sh /home/$USERNAME/.nono-bin/docker
+RUN SNIPPET="export PATH=\"/home/$USERNAME/.nono-bin:\$PATH\"" \
 	&& echo "$SNIPPET" >> "/home/$USERNAME/.bashrc"
 # Pre-creating paths for nono policy enforcement in `utils/post-create.sh`
 
