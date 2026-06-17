@@ -65,10 +65,10 @@
 		"CLAUDE_CONFIG_DIR": "/home/eng-user/.claude"
 	},
 
-	// Command to run after the container is created
-	// Creating `/tmp/claude-$UID` dir so `nono` can correctly enforce the policy on that directory
-	// when `claude` is run for the first time
-	"postCreateCommand": "./.devcontainer/utils/post-create.sh; claude -v;",
+	// Command to run after the container is created for the first time
+	"postCreateCommand": "claude -v",
+	// Command to run every time the container is started
+	"postStartCommand": "./.devcontainer/utils/post-start.sh",
 
 	// Set `remoteUser` to `root` to connect as root instead
 	// More info: https://aka.ms/dev-containers-non-root
