@@ -13,7 +13,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install nono for locking down running of claude
 # https://nono.sh/docs/cli/getting_started/installation#debian/ubuntu
-RUN VERSION=$(curl -sI https://github.com/always-further/nono/releases/latest | grep -i location | grep -oP 'v\K[0-9a-zA-Z.-]+') \
+ARG NONO_VERSION=latest
+RUN VERSION=$(if [ "$NONO_VERSION" = "latest" ]; then \
+		curl -sI https://github.com/always-further/nono/releases/latest | grep -i location | grep -oP 'v\K[0-9a-zA-Z.-]+'; \
+	else \
+		echo ${NONO_VERSION}; \
+	fi) \
 	&& ARCH=$(dpkg --print-architecture) \
 	&& curl -L -O https://github.com/always-further/nono/releases/download/v${VERSION}/nono-cli_${VERSION}_${ARCH}.deb \
 	&& dpkg -i nono-cli_${VERSION}_${ARCH}.deb
@@ -40,7 +45,8 @@ RUN mkdir -p /home/$USERNAME/.claude
 # Install nono claude-code package, which also wires it into claude code as a single-plugin marketplace
 # https://nono.sh/docs/cli/features/managing-packs#initializing-project-files
 # https://nono.sh/docs/cli/clients/claude-code#what-%E2%80%9Cpull%E2%80%9D-actually-does
-RUN nono pull always-further/claude --init
+ARG NONO_CLAUDE_PACK_VERSION=latest
+RUN nono pull always-further/claude@${NONO_CLAUDE_PACK_VERSION} --init
 # Add nono profile that extends claude-code profile with docker support
 COPY utils/claude-with-docker.jsonc /home/$USERNAME/.config/nono/profiles/
 # Override `claude` command to automatically run with `nono` and allowing r+w access to /workspace
@@ -52,7 +58,7 @@ RUN SNIPPET="alias claude='NONO_COMPOSE_TMPDIR=/tmp/nono-compose/ nono run --all
 COPY utils/nono-docker-compose.sh /home/$USERNAME/.nono-bin/docker
 RUN SNIPPET="export PATH=\"/home/$USERNAME/.nono-bin:\$PATH\"" \
 	&& echo "$SNIPPET" >> "/home/$USERNAME/.bashrc"
-# Pre-creating paths for nono policy enforcement in `utils/post-create.sh`
+# Pre-creating paths for nono policy enforcement in `utils/post-start.sh`
 
 # Run selected build scripts
 ARG BUILD_SCRIPTS=""

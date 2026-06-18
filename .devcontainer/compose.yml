@@ -4,6 +4,9 @@ services:
       context: .
       args:
         BUILD_SCRIPTS: "${BUILD_SCRIPTS}"
+        CLAUDE_CODE_VERSION: "${CLAUDE_CODE_VERSION:-latest}"
+        NONO_VERSION: "${NONO_VERSION:-latest}"
+        NONO_CLAUDE_PACK_VERSION: "${NONO_CLAUDE_PACK_VERSION:-latest}"
     environment:
       TZ: "${TZ:-America/Los_Angeles}"
     # workaround for oauth callback bug

@@ -16,10 +16,13 @@ so containers launched inside the workspace run on their own isolated daemon.
 Per-user overrides live in `.devcontainer/.env`. All values are optional; changes take effect on
 the next container **rebuild**.
 
-| Variable        | Default               | Effect                                                                                                                                                                                                     |
-| --------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `TZ`            | `America/Los_Angeles` | Container timezone.                                                                                                                                                                                        |
-| `BUILD_SCRIPTS` | _(empty)_             | Space-separated list of installers from `build-scripts/` to run during image build (`.sh` suffix optional). Available: `install-bun`, `install-node`. Example: `BUILD_SCRIPTS="install-bun install-node"`. |
+| Variable                  | Default               | Effect                                                                                                                                                                                                     |
+| ------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TZ`                      | `America/Los_Angeles` | Container timezone.                                                                                                                                                                                        |
+| `CLAUDE_CODE_VERSION`     | `latest`              | Claude Code version to install during image build.                                                                                                                                                         |
+| `NONO_VERSION`            | `latest`              | nono CLI version to install during image build.                                                                                                                                                            |
+| `NONO_CLAUDE_PACK_VERSION`| `latest`              | nono claude pack version to install during image build.                                                                                                                                                    |
+| `BUILD_SCRIPTS`           | _(empty)_             | Space-separated list of installers from `build-scripts/` to run during image build (`.sh` suffix optional). Available: `install-bun`, `install-node`. Example: `BUILD_SCRIPTS="install-bun install-node"`. |
 
 > **Claude config persistence** is handled via a named Docker volume
 > mounted at `/home/eng-user/.claude`. This volume survives container rebuilds but is lost if
@@ -103,7 +106,7 @@ If a Claude Code tool call is blocked by nono, a policy error is printed to the 
 investigate or relax the policy:
 
 - Review `utils/claude-with-docker.jsonc` and expand the relevant `filesystem.allow` list.
-- The `post-create.sh` script pre-creates `~/.docker`, `/tmp/claude-$UID`, and `/tmp/nono-compose`
+- The `post-start.sh` script pre-creates `~/.docker`, `/tmp/claude-$UID`, and `/tmp/nono-compose`
   so nono can apply policy to them. If those directories are missing (e.g. after a partial setup),
   recreate them:
 
