@@ -14,12 +14,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install nono for locking down running of claude
 # https://nono.sh/docs/cli/getting_started/installation#debian/ubuntu
 ARG NONO_VERSION=latest
-RUN VERSION=$(if [ "$NONO_VERSION" = "latest" ]; then \
-		curl -sI https://github.com/always-further/nono/releases/latest | grep -i location | grep -oP 'v\K[0-9a-zA-Z.-]+'; \
-	else \
-		echo ${NONO_VERSION}; \
+RUN VERSION=$(if [ "$NONO_VERSION" = "latest" ]; \
+	then curl -sIL https://github.com/always-further/nono/releases/latest | grep -i location | tail -n 1 | grep -oP 'v\K[0-9a-zA-Z.-]+'; \
+	else echo ${NONO_VERSION}; \
 	fi) \
 	&& ARCH=$(dpkg --print-architecture) \
+	&& echo "\$VERSION: ${VERSION}, \$ARCH: ${ARCH}" \
 	&& curl -L -O https://github.com/always-further/nono/releases/download/v${VERSION}/nono-cli_${VERSION}_${ARCH}.deb \
 	&& dpkg -i nono-cli_${VERSION}_${ARCH}.deb
 
@@ -50,9 +50,10 @@ RUN nono pull always-further/claude@${NONO_CLAUDE_PACK_VERSION} --init
 # Add nono profile that extends claude-code profile with docker support
 COPY utils/claude-with-docker.jsonc /home/$USERNAME/.config/nono/profiles/
 # Override `claude` command to automatically run with `nono` and allowing r+w access to /workspace
+# - `GIT_CONFIG_NOSYSTEM=1` is to git from reading system level `/etc/gitconfig` which `nono` locks down
 # - `NONO_COMPOSE_TMPDIR=/tmp/nono-compose` is a workaround so claude can run docker compose w/o granting
 #   read access to the entirety of `/tmp`. This works in conjunction with `nono-docker-compose.sh` below.
-RUN SNIPPET="alias claude='NONO_COMPOSE_TMPDIR=/tmp/nono-compose/ nono run --allow /workspace/ --allow /tmp/nono-compose/ --allow ~/.nono-bin/ --profile claude-with-docker -- claude'" \
+RUN SNIPPET="alias claude='NONO_COMPOSE_TMPDIR=/tmp/nono-compose/ GIT_CONFIG_NOSYSTEM=1 nono run --allow /workspace/ --allow /tmp/nono-compose/ --allow ~/.nono-bin/ --profile claude-with-docker -- claude'" \
 	&& echo "$SNIPPET" >> "/home/$USERNAME/.bashrc"
 # Add passthrough docker binary that runs `docker compose` with an overridden TMPDIR
 COPY utils/nono-docker-compose.sh /home/$USERNAME/.nono-bin/docker
