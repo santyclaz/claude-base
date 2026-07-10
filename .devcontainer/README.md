@@ -22,12 +22,20 @@ the next container **rebuild**.
 | `CLAUDE_CODE_VERSION`     | `latest`              | Claude Code version to install during image build.                                                                                                                                                         |
 | `NONO_VERSION`            | `latest`              | nono CLI version to install during image build.                                                                                                                                                            |
 | `NONO_CLAUDE_PACK_VERSION`| `latest`              | nono claude pack version to install during image build.                                                                                                                                                    |
+| `CLAUDE_CONFIG_MOUNT_DIR` | _(empty)_             | Host path to bind-mount as the container's Claude config directory. When set, overrides the default named-volume persistence — see below.                                                                  |
 | `BUILD_SCRIPTS`           | _(empty)_             | Space-separated list of installers from `build-scripts/` to run during image build (`.sh` suffix optional). Available: `install-bun`, `install-node`. Example: `BUILD_SCRIPTS="install-bun install-node"`. |
 
-> **Claude config persistence** is handled via a named Docker volume
-> mounted at `/home/eng-user/.claude`. This volume survives container rebuilds but is lost if
-> explicitly pruned. `CLAUDE_CONFIG_DIR` is set to that path inside the container as a workaround
-> for an [OAuth callback bug](https://github.com/anthropics/claude-code/issues/1736#issuecomment-3113994138).
+### Claude config persistence
+
+Inside the container, `~/.claude` is a symlink that resolves at container start to one of two
+targets, depending on whether `CLAUDE_CONFIG_MOUNT_DIR` is set:
+
+- **Named Docker volume** _(default)_ — `~/.claude` → `~/.claude-volume`. The volume survives
+  container rebuilds but is lost if explicitly pruned (e.g. `docker volume prune`).
+- **Host bind-mount** — set `CLAUDE_CONFIG_MOUNT_DIR` in `.env` to a host path (e.g.
+  `CLAUDE_CONFIG_MOUNT_DIR=~/.claude`) and `~/.claude` → `~/.claude-mount`, which is bind-mounted
+  from that host path. Useful for sharing your host's Claude config (auth, settings, history) into
+  the container.
 
 ## nono security sandbox
 

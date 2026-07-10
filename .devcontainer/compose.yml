@@ -9,10 +9,12 @@ services:
         NONO_CLAUDE_PACK_VERSION: "${NONO_CLAUDE_PACK_VERSION:-latest}"
     environment:
       TZ: "${TZ:-America/Los_Angeles}"
+      CLAUDE_CONFIG_MOUNT_DIR:
     # workaround for oauth callback bug
     # https://github.com/anthropics/claude-code/issues/9376#issuecomment-3977483593
     sysctls:
       - net.ipv6.conf.all.disable_ipv6=1
     volumes:
       - ..:/workspace:cached
+      - ${CLAUDE_CONFIG_MOUNT_DIR:-/dev/null}:/home/eng-user/.claude-mount
     command: sleep infinity

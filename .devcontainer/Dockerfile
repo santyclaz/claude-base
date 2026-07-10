@@ -35,12 +35,14 @@ RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/cmdhistory/.
 
 USER $USERNAME
 
+# Placeholder symlink to support switching between volume vs. mounted config directory
+# - need to create `.claude-tmp` (i.e. can't just create a dangling symlink) since claude installation
+#   creates and writes to `~/.claude` directory
+RUN mkdir /home/$USERNAME/.claude-tmp && ln -s /home/$USERNAME/.claude-tmp /home/$USERNAME/.claude
+
 # Install claude code
 ARG CLAUDE_CODE_VERSION=latest
 RUN curl -fsSL https://claude.ai/install.sh | bash -s ${CLAUDE_CODE_VERSION}
-
-# For persisting claude config
-RUN mkdir -p /home/$USERNAME/.claude
 
 # Install nono claude-code package, which also wires it into claude code as a single-plugin marketplace
 # https://nono.sh/docs/cli/features/managing-packs#initializing-project-files
