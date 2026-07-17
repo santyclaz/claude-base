@@ -7,7 +7,7 @@
 # 2. prefer to keep all the related "pre-created" stuff together
 mkdir -p /home/$USER/.docker
 mkdir -p /tmp/claude-$UID
-mkdir -p /tmp/nono-compose
+mkdir -p /tmp/nono-sandbox
 
 # Point ~/.claude to the bind-mount if provided, otherwise to the volume
 if [ -n "$CLAUDE_CONFIG_MOUNT_DIR" ]; then

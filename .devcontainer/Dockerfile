@@ -53,11 +53,13 @@ RUN nono pull always-further/claude@${NONO_CLAUDE_PACK_VERSION} --init
 COPY utils/claude-with-docker.jsonc /home/$USERNAME/.config/nono/profiles/
 # Override `claude` command to automatically run with `nono` and allowing r+w access to /workspace
 # - `GIT_CONFIG_NOSYSTEM=1` is to git from reading system level `/etc/gitconfig` which `nono` locks down
-# - `NONO_COMPOSE_TMPDIR=/tmp/nono-compose` is a workaround so claude can run docker compose w/o granting
-#   read access to the entirety of `/tmp`. This works in conjunction with `nono-docker-compose.sh` below.
-RUN SNIPPET="alias claude='NONO_COMPOSE_TMPDIR=/tmp/nono-compose/ GIT_CONFIG_NOSYSTEM=1 nono run --allow /workspace/ --allow /tmp/nono-compose/ --allow ~/.nono-bin/ --profile claude-with-docker -- claude'" \
+# - `NONO_SANDBOX_TMPDIR=/tmp/nono-sandbox` is to provide a dedicated area where claude can read/write to
+#   in `/tmp` w/o granting read access to the entirety of `/tmp`.
+#   - e.g. claude fails when running `docker compose` since the command sometimes reads/writes from `/tmp`
+RUN SNIPPET="alias claude='NONO_SANDBOX_TMPDIR=/tmp/nono-sandbox/ GIT_CONFIG_NOSYSTEM=1 nono run --allow /workspace/ --allow /tmp/nono-sandbox/ --allow ~/.nono-bin/ --profile claude-with-docker -- claude'" \
 	&& echo "$SNIPPET" >> "/home/$USERNAME/.bashrc"
 # Add passthrough docker binary that runs `docker compose` with an overridden TMPDIR
+# This is so we don't have to provide read access to the entirety of `/tmp` which is locked down by default
 COPY utils/nono-docker-compose.sh /home/$USERNAME/.nono-bin/docker
 RUN SNIPPET="export PATH=\"/home/$USERNAME/.nono-bin:\$PATH\"" \
 	&& echo "$SNIPPET" >> "/home/$USERNAME/.bashrc"

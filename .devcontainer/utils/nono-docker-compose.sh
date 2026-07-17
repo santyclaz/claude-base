@@ -7,8 +7,8 @@
 
 DOCKER_BIN=/usr/bin/docker
 
-if [ "$1" = "compose" ] && [ -n "$NONO_COMPOSE_TMPDIR" ]; then
-    TMPDIR="$NONO_COMPOSE_TMPDIR" exec "$DOCKER_BIN" "$@"
+if [ "$1" = "compose" ] && [ -n "$NONO_SANDBOX_TMPDIR" ]; then
+    TMPDIR="$NONO_SANDBOX_TMPDIR" exec "$DOCKER_BIN" "$@"
 else
     # Run standard docker commands normally
     exec "$DOCKER_BIN" "$@"
