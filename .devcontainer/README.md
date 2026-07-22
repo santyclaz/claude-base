@@ -43,7 +43,7 @@ Claude Code runs wrapped in [nono](https://nono.sh/), which enforces filesystem 
 policies at runtime. The `claude` command is aliased to:
 
 ```sh
-(set -a; [ -f ~/nono-sandbox.env ] && . /workspace/.devcontainer/nono-sandbox.env; set +a; exec nono run --allow /workspace/ --allow $NONO_SANDBOX_DIR --allow $NONO_SANDBOX_TMPDIR --profile claude-with-docker -- claude)
+(set -a; [ -f ~/nono-sandbox.env ] && . ~/nono-sandbox.env; set +a; exec nono run --allow /workspace/ --allow $NONO_SANDBOX_DIR --allow $NONO_SANDBOX_TMPDIR --profile claude-with-docker -- claude)
 ```
 
 - **`/workspace/`** — read+write access to your project files.
@@ -57,6 +57,14 @@ policies at runtime. The `claude` command is aliased to:
   down) and `TMPDIR=$NONO_SANDBOX_TMPDIR` (redirects tools that read/write temp files to `/tmp` by
   default, e.g. [`docker compose`](https://github.com/docker/compose/issues/4137)). Add more
   `VAR=value` lines there as needed — see the file's header comment for format details.
+
+  > **Security note:** the alias sources `~/nono-sandbox.env` — a copy baked into the image at build
+  > time (root-owned, read-only), *not* the live `.devcontainer/nono-sandbox.env` in your workspace.
+  > This is deliberate: `/workspace/` is writable by the sandboxed agent, so if the alias sourced
+  > the live file directly, an agent could edit its own sandbox policy and have the change apply on
+  > the very next `claude` invocation. Because the trusted copy only updates on rebuild, treat edits
+  > to `.devcontainer/nono-sandbox.env` like any other sandbox-policy change (same scrutiny as
+  > `utils/claude-with-docker.jsonc`) — review the diff carefully *before* rebuilding.
 - **`claude-with-docker` profile** — extends the built-in `claude-code` nono pack with additional
   access needed for Docker operations (`$HOME/.docker`, Docker CLI plugin paths). The profile lives
   at `utils/claude-with-docker.jsonc`; edit it to adjust what Claude Code can access. Note that the

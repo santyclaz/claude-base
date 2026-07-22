@@ -55,9 +55,19 @@ COPY utils/claude-with-docker.jsonc /home/$USERNAME/.config/nono/profiles/
 # Dedicated writable dirs for the nono sandbox when running agents
 # - `NONO_SANDBOX_DIR` is more permanent - survives container spin-downs
 # - `NONO_SANDBOX_TMPDIR` is more ephemeral - may not survive container spin-downs
-# - Referenced in: `claude` alias below, `.devcontainer/nono-sandbox.env`, and `utils/post-start.sh`
+# - referenced in: `claude` alias below, `.devcontainer/nono-sandbox.env`, and `utils/post-start.sh`
 ENV NONO_SANDBOX_DIR=/home/$USERNAME/nono-sandbox/
 ENV NONO_SANDBOX_TMPDIR=/tmp/nono-sandbox/
+# IMPORTANT: Intentionally making copy of `nono-sandbox.env` and setting permissions for security purposes
+# - this file is meant to configure the nono sandbox environment for agents, so we want to prevent any
+#   potentially malicious changes the agent might make from being automatically picked-up on subsequent
+#   sessions (i.e. prevent an agent from self-modifying its own sandbox policy)
+# - this forces a human to intentionally rebuild the devcontainer, or modify the copy before changes
+#   get picked up
+# - `--chmod=444` prevents `$USERNAME` from writing to it even if nono's own policy get loosened
+# - do NOT add `--chown=$USERNAME` or drop `--chmod` -- `$USERNAME` owning or being able to write
+#   this file would help allow the sandboxed agent to overwrite its own trusted copy
+COPY --chmod=444 nono-sandbox.env /home/$USERNAME/nono-sandbox.env
 # Override `claude` command to automatically run with `nono`
 # - grants r+w access to /workspace
 # - grants r+w access to `$NONO_SANDBOX_TMPDIR` so claude has a dedicated area to r+w to in `/tmp`
@@ -66,8 +76,7 @@ ENV NONO_SANDBOX_TMPDIR=/tmp/nono-sandbox/
 #   from directories nono locks down (see `nono-sandbox.env` for further details)
 # - `( … )` for running in subshell to keep vars scoped to this invocation only
 # - `[ -f ]` guard to allow claude to run even w/o `nono-sandbox.env` present
-COPY nono-sandbox.env /home/$USERNAME/nono-sandbox.env
-RUN SNIPPET="alias claude='(set -a; [ -f ~/nono-sandbox.env ] && . /workspace/.devcontainer/nono-sandbox.env; set +a; exec nono run --allow /workspace/ --allow \$NONO_SANDBOX_DIR --allow \$NONO_SANDBOX_TMPDIR --profile claude-with-docker -- claude)'" \
+RUN SNIPPET="alias claude='(set -a; [ -f ~/nono-sandbox.env ] && . ~/nono-sandbox.env; set +a; exec nono run --allow /workspace/ --allow \$NONO_SANDBOX_DIR --allow \$NONO_SANDBOX_TMPDIR --profile claude-with-docker -- claude)'" \
 	&& echo "$SNIPPET" >> "/home/$USERNAME/.bashrc"
 # Pre-creating paths for nono policy enforcement in `utils/post-start.sh`
 
