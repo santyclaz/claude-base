@@ -36,8 +36,8 @@ RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/cmdhistory/.
 USER $USERNAME
 
 # Placeholder symlink to support switching between volume vs. mounted config directory
-# - need to create `.claude-tmp` (i.e. can't just create a dangling symlink) since claude installation
-#   creates and writes to `~/.claude` directory
+# - need to create `.claude-tmp` (i.e. can't just create a dangling symlink) before installing claude
+#   since claude installation creates and writes to `~/.claude` directory
 RUN mkdir /home/$USERNAME/.claude-tmp && ln -s /home/$USERNAME/.claude-tmp /home/$USERNAME/.claude
 
 # Install claude code
@@ -51,17 +51,23 @@ ARG NONO_CLAUDE_PACK_VERSION=latest
 RUN nono pull always-further/claude@${NONO_CLAUDE_PACK_VERSION} --init
 # Add nono profile that extends claude-code profile with docker support
 COPY utils/claude-with-docker.jsonc /home/$USERNAME/.config/nono/profiles/
-# Override `claude` command to automatically run with `nono` and allowing r+w access to /workspace
-# - `GIT_CONFIG_NOSYSTEM=1` is to git from reading system level `/etc/gitconfig` which `nono` locks down
-# - `NONO_SANDBOX_TMPDIR=/tmp/nono-sandbox` is to provide a dedicated area where claude can read/write to
-#   in `/tmp` w/o granting read access to the entirety of `/tmp`.
-#   - e.g. claude fails when running `docker compose` since the command sometimes reads/writes from `/tmp`
-RUN SNIPPET="alias claude='NONO_SANDBOX_TMPDIR=/tmp/nono-sandbox/ GIT_CONFIG_NOSYSTEM=1 nono run --allow /workspace/ --allow /tmp/nono-sandbox/ --allow ~/.nono-bin/ --profile claude-with-docker -- claude'" \
-	&& echo "$SNIPPET" >> "/home/$USERNAME/.bashrc"
-# Add passthrough docker binary that runs `docker compose` with an overridden TMPDIR
-# This is so we don't have to provide read access to the entirety of `/tmp` which is locked down by default
-COPY utils/nono-docker-compose.sh /home/$USERNAME/.nono-bin/docker
-RUN SNIPPET="export PATH=\"/home/$USERNAME/.nono-bin:\$PATH\"" \
+
+# Dedicated writable dirs for the nono sandbox when running agents
+# - `NONO_SANDBOX_DIR` is more permanent - survives container spin-downs
+# - `NONO_SANDBOX_TMPDIR` is more ephemeral - may not survive container spin-downs
+# - Referenced in: `claude` alias below, `.devcontainer/nono-sandbox.env`, and `utils/post-start.sh`
+ENV NONO_SANDBOX_DIR=/home/$USERNAME/nono-sandbox/
+ENV NONO_SANDBOX_TMPDIR=/tmp/nono-sandbox/
+# Override `claude` command to automatically run with `nono`
+# - grants r+w access to /workspace
+# - grants r+w access to `$NONO_SANDBOX_TMPDIR` so claude has a dedicated area to r+w to in `/tmp`
+#   w/o exposing the entirety of `/tmp` -- e.g. `docker compose` sometimes r+w from `/tmp`
+# - sourcing `nono-sandbox.env` provides a way to help address access issues due to tooling that r+w
+#   from directories nono locks down (see `nono-sandbox.env` for further details)
+# - `( … )` for running in subshell to keep vars scoped to this invocation only
+# - `[ -f ]` guard to allow claude to run even w/o `nono-sandbox.env` present
+COPY nono-sandbox.env /home/$USERNAME/nono-sandbox.env
+RUN SNIPPET="alias claude='(set -a; [ -f ~/nono-sandbox.env ] && . /workspace/.devcontainer/nono-sandbox.env; set +a; exec nono run --allow /workspace/ --allow \$NONO_SANDBOX_DIR --allow \$NONO_SANDBOX_TMPDIR --profile claude-with-docker -- claude)'" \
 	&& echo "$SNIPPET" >> "/home/$USERNAME/.bashrc"
 # Pre-creating paths for nono policy enforcement in `utils/post-start.sh`
 
