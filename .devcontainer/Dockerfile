@@ -48,7 +48,7 @@ RUN curl -fsSL https://claude.ai/install.sh | bash -s ${CLAUDE_CODE_VERSION}
 # https://nono.sh/docs/cli/features/managing-packs#initializing-project-files
 # https://nono.sh/docs/cli/clients/claude-code#what-%E2%80%9Cpull%E2%80%9D-actually-does
 ARG NONO_CLAUDE_PACK_VERSION=latest
-RUN nono pull always-further/claude@${NONO_CLAUDE_PACK_VERSION} --init
+RUN nono pull nolabs-ai/claude@${NONO_CLAUDE_PACK_VERSION} --init
 # Add nono profile that extends claude-code profile with docker support
 COPY utils/claude-with-docker.jsonc /home/$USERNAME/.config/nono/profiles/
 
