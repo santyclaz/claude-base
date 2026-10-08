@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	make \
 	&& apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install nono for locking down running of claude
+# Install nono for locking down running of agents
 # https://nono.sh/docs/cli/getting_started/installation#debian/ubuntu
 ARG NONO_VERSION=latest
 RUN VERSION=$(if [ "$NONO_VERSION" = "latest" ]; \
@@ -22,6 +22,18 @@ RUN VERSION=$(if [ "$NONO_VERSION" = "latest" ]; \
 	&& echo "\$VERSION: ${VERSION}, \$ARCH: ${ARCH}" \
 	&& curl -L -O https://github.com/always-further/nono/releases/download/v${VERSION}/nono-cli_${VERSION}_${ARCH}.deb \
 	&& dpkg -i nono-cli_${VERSION}_${ARCH}.deb
+
+# Install herdr for managing agents
+# https://herdr.dev/docs/install/
+ARG HERDR_VERSION=latest
+RUN VERSION=$(if [ "$HERDR_VERSION" = "latest" ]; \
+	then curl -sIL https://github.com/herdrdev/herdr/releases/latest | grep -i location | tail -n 1 | grep -oP 'v\K[0-9a-zA-Z.-]+'; \
+	else echo ${HERDR_VERSION}; \
+	fi) \
+	&& ARCH=$(case "$(dpkg --print-architecture)" in amd64) echo x86_64;; arm64) echo aarch64;; esac) \
+	&& echo "\$VERSION: ${VERSION}, \$ARCH: ${ARCH}" \
+	&& curl -L -o /usr/local/bin/herdr https://github.com/herdrdev/herdr/releases/download/v${VERSION}/herdr-linux-${ARCH} \
+	&& chmod +x /usr/local/bin/herdr
 
 ARG USERNAME=eng-user
 RUN adduser $USERNAME
@@ -55,7 +67,7 @@ COPY utils/claude-with-docker.jsonc /home/$USERNAME/.config/nono/profiles/
 # Dedicated writable dirs for the nono sandbox when running agents
 # - `NONO_SANDBOX_DIR` is more permanent - survives container spin-downs
 # - `NONO_SANDBOX_TMPDIR` is more ephemeral - may not survive container spin-downs
-# - referenced in: `claude` alias below, `.devcontainer/nono-sandbox.env`, and `utils/post-start.sh`
+# - referenced in: `claude` function below, `.devcontainer/nono-sandbox.env`, and `utils/post-start.sh`
 ENV NONO_SANDBOX_DIR=/home/$USERNAME/nono-sandbox/
 ENV NONO_SANDBOX_TMPDIR=/tmp/nono-sandbox/
 # IMPORTANT: Intentionally making copy of `nono-sandbox.env` and setting permissions for security purposes
@@ -76,8 +88,25 @@ COPY --chmod=444 nono-sandbox.env /home/$USERNAME/nono-sandbox.env
 #   from directories nono locks down (see `nono-sandbox.env` for further details)
 # - `( … )` for running in subshell to keep vars scoped to this invocation only
 # - `[ -f ]` guard to allow claude to run even w/o `nono-sandbox.env` present
-RUN SNIPPET="alias claude='(set -a; [ -f ~/nono-sandbox.env ] && . ~/nono-sandbox.env; set +a; exec nono run --allow /workspace/ --allow \$NONO_SANDBOX_DIR --allow \$NONO_SANDBOX_TMPDIR --profile claude-with-docker -- claude)'" \
-	&& echo "$SNIPPET" >> "/home/$USERNAME/.bashrc"
+# - quoted heredoc delimiter (`'EOF'`) so `$VARS` are written literally and expanded at call time
+RUN cat >> "/home/$USERNAME/.bashrc" <<'EOF'
+claude() (
+  set -a
+  [ -f ~/nono-sandbox.env ] && . ~/nono-sandbox.env
+  set +a
+
+  # using `sh -c` to create an intermediate, dumpable `sh` process so `herdr` can detect agent sessions
+  # https://github.com/herdrdev/herdr/discussions/514?utm_source=chatgpt.com#discussioncomment-18274829
+  HERDR_AGENT=claude sh -c '
+    nono run \
+      --allow /workspace/ \
+      --allow "$NONO_SANDBOX_DIR" \
+      --allow "$NONO_SANDBOX_TMPDIR" \
+      --profile claude-with-docker \
+      -- claude "$@"
+  ' sh "$@"
+)
+EOF
 # Pre-creating paths for nono policy enforcement in `utils/post-start.sh`
 
 # Run selected build scripts

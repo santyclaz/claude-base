@@ -66,7 +66,7 @@
 	},
 
 	// Command to run after the container is created for the first time
-	"postCreateCommand": "nono --version; claude -v;",
+	"postCreateCommand": "herdr --version; nono --version; claude -v;",
 	// Command to run every time the container is started
 	"postStartCommand": "./.devcontainer/utils/post-start.sh",
 
