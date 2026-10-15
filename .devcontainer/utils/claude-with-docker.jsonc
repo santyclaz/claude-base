@@ -27,6 +27,17 @@
     ],
     "read": [ ],
     "write": [ ],
+    // pathname unix sockets the session may connect to (everything else is blocked by
+    // `linux.af_unix_mediation` below)
+    "unix_socket": [
+      // docker daemon (`/var/run` -> `/run`)
+      "/var/run/docker.sock",
+      "/run/docker.sock"
+    ],
+    "unix_socket_dir_bind": [
+      // claude code inter-session messaging (`CLAUDE_CODE_MESSAGING_SOCKET`, one socket per claude pid)
+      "$XDG_RUNTIME_DIR/cc-socks"
+    ],
     "allow_file": [ ],
     "read_file": [ ],
     "write_file": [ ],
@@ -242,6 +253,15 @@
         }
       }
     }
+  },
+  "linux": {
+    // default-deny pathname unix sockets (landlock alone can't restrict `connect(2)` on them), only
+    // `filesystem.unix_socket*` grants are reachable. Keeps forwarded host sockets away from the session:
+    // - ssh agent (`SSH_AUTH_SOCK`) -- only the `ssh` command sandbox gets it (`ssh-agent` credential)
+    // - vscode git askpass (`VSCODE_GIT_IPC_HANDLE`), vscode cli / remote-containers ipc, gpg agent,
+    //   X11 / wayland
+    // - herdr (`HERDR_SOCKET_PATH`) -- can drive other panes
+    "af_unix_mediation": "pathname"
   },
   "hooks": { },
   "rollback": {
