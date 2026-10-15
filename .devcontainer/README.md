@@ -70,6 +70,17 @@ policies at runtime. The `claude` command is aliased to:
   at `utils/claude-with-docker.jsonc`; edit it to adjust what Claude Code can access. Note that the
   profile explicitly **denies** `/vscode/vscode-server/bin` to prevent the VS Code IDE integration
   from running outside the sandbox.
+- **Sandboxed tools** — `git`, `ssh`, and `gh` run as nono
+  [command policies](https://nono.sh/docs/cli/features/tool-sandbox): each invocation gets its own
+  sandbox with credential access the Claude session itself doesn't have.
+  - `git` can call `ssh`, which gets the forwarded ssh agent (`$SSH_AUTH_SOCK`) and read-only
+    `~/.ssh/known_hosts`, so it only trusts hosts you've already accepted. Accept a new host (e.g.
+    after a rebuild) by running `ssh -T git@github.com` in a regular, unsandboxed terminal. Direct
+    `ssh` from the session is denied.
+    Git hooks, `credential.helper`/`core.sshCommand` shell snippets, and `git-lfs` are not modeled
+    and will be denied.
+  - `gh` gets `~/.config/gh`. `gh auth` (except `gh auth status`), `gh config`, and
+    `gh extension` are blocked. Run `gh auth login` outside the sandbox.
 
 > The `anthropic.claude-code` VS Code extension is intentionally **not** installed — it would run
 > Claude Code outside the nono sandbox. Use the `claude` CLI instead.

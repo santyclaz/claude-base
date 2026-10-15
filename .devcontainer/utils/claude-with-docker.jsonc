@@ -52,6 +52,197 @@
     "custom_credentials": { }
   },
   "env_credentials": { },
+  // sandboxed tool execution
+  // https://nono.sh/docs/cli/features/tool-sandbox
+  // NOTE: command sandboxes do NOT inherit the session's filesystem/network grants
+  "command_policies": {
+    "credentials": {
+      // forwarded ssh agent (vscode / herdr) -- only handed to `ssh` when invoked by `git`, so private
+      // keys never need to be readable by any sandbox
+      "ssh-agent": {
+        "type": "local-socket",
+        "path": "$SSH_AUTH_SOCK",
+        "mode": "connect",
+        "env_var": "SSH_AUTH_SOCK"
+      }
+    },
+    "commands": {
+      // git
+      // NOTE: git is a multi-call tool -- subcommands/transports (e.g. `git-remote-https`) are re-exec'd
+      // from `/usr/lib/git-core` inside this same sandbox (`exec_paths`). Anything else git spawns (hooks,
+      // `core.sshCommand`/`credential.helper` shell snippets, editors, pagers, `git-lfs`) is denied unless
+      // modeled as another command + `can_use` edge -- `ssh` is the only one modeled
+      "git": {
+        "executable": "/usr/bin/git",
+        "can_use": [ "ssh" ],
+        "sandbox": {
+          "fs_read": [
+            // multi-call helpers + templates
+            "/usr/lib/git-core",
+            "/usr/share/git-core",
+            // shared libs of re-exec'd helpers (e.g. `libcurl-gnutls` for `git-remote-https`) -- nono only
+            // grants the loader closure of the pinned `git` binary itself
+            "/usr/lib/x86_64-linux-gnu",
+            // system CA certs for https remotes (`/etc/ssl/certs` symlinks into `/usr/share/ca-certificates`)
+            "/etc/ssl/certs",
+            "/usr/share/ca-certificates"
+          ],
+          "fs_read_file": [
+            // trusted global git config (`~/.gitconfig` etc.), never repo-local `.git/config` includes
+            "@git:config-files",
+            // DNS resolution
+            "/etc/resolv.conf",
+            "/etc/hosts",
+            "/etc/nsswitch.conf",
+            "/etc/host.conf",
+            "/etc/gai.conf"
+          ],
+          "fs_write": [
+            // all repos (sessions span sibling repos under `/workspace`, not just the launch dir)
+            "/workspace",
+            // worktree object store when the session starts inside a linked worktree
+            "@git:common-dir",
+            // `TMPDIR` is redirected here via `nono-sandbox.env`
+            "$NONO_SANDBOX_TMPDIR"
+          ],
+          "exec_paths": [
+            "/usr/lib/git-core"
+          ],
+          // https remotes (ssh remotes go through the `ssh` sandbox below)
+          // NOTE: unrestricted since nono's port-scoped mode (`tcp_connect_ports`) seccomp-blocks non-TCP sockets,
+          // which breaks DNS (UDP). The isolation that matters here is credentials, not egress -- domain scoping would
+          // require a session-wide nono proxy, which blocks direct non-HTTP(S) connections (e.g. ssh remotes, db ports)
+          "network": {
+            "allow_all": true
+          },
+          "environment": {
+            // `GIT_CONFIG_NOSYSTEM` from `nono-sandbox.env` (`/etc/gitconfig` is not granted)
+            "allow_vars": [ "HOME", "USER", "LOGNAME", "LANG", "LC_*", "TERM", "TMPDIR", "GIT_CONFIG_NOSYSTEM", "GIT_AUTHOR_*", "GIT_COMMITTER_*" ],
+            "set_vars": {
+              // mediated commands have no usable tty -- fail fast instead of hanging on a prompt
+              "GIT_TERMINAL_PROMPT": "0"
+            }
+          }
+        }
+      },
+      // ssh -- only reachable through `git` (e.g. `git fetch` on `git@github.com:...` remotes)
+      "ssh": {
+        "executable": "/usr/bin/ssh",
+        "from": {
+          "git": {
+            // first-obtained value wins in ssh, so these override any `-o` git/repo config passes:
+            // - only trust hosts already in `~/.ssh/known_hosts` (read-only, so unknown hosts can't be added
+            //   from inside the sandbox -- accept new hosts by running `ssh -T git@<host>` outside the sandbox)
+            // - never read key files -- authenticate via the agent socket only
+            "argv_prepend": [
+              "-o", "StrictHostKeyChecking=yes",
+              "-o", "UserKnownHostsFile=~/.ssh/known_hosts",
+              "-o", "UpdateHostKeys=no",
+              "-o", "IdentityFile=none"
+            ],
+            "fs_read_file": [
+              "/etc/ssh/ssh_config",
+              // pre-created in `utils/post-start.sh`; the rest of `~/.ssh` (private keys, config) stays denied
+              "$HOME/.ssh/known_hosts",
+              // DNS resolution
+              "/etc/resolv.conf",
+              "/etc/hosts",
+              "/etc/nsswitch.conf",
+              "/etc/host.conf",
+              "/etc/gai.conf"
+            ],
+            "fs_read": [
+              "/etc/ssh/ssh_config.d"
+            ],
+            "use_credentials": [ "ssh-agent" ],
+            // NOTE: unrestricted for DNS (UDP), see `git` network note
+            "network": {
+              "allow_all": true
+            },
+            "environment": {
+              "allow_vars": [ "HOME", "USER", "LOGNAME", "LANG", "LC_*" ]
+            }
+          },
+          // block direct `ssh` (and the agent behind it) from the session
+          "session": "deny"
+        }
+      },
+      // github cli
+      "gh": {
+        "executable": "/usr/bin/gh",
+        // block subcommands that can leak or misuse the token in `~/.config/gh` (`respond` = don't run, print msg)
+        // NOTE: `match.argv.exact`/`prefix` match against argv[1..] (first match wins)
+        "intercept": [
+          // read-only status is fine (without `-t`/`--show-token`)
+          {
+            "match": { "argv": { "exact": [ "auth", "status" ] } },
+            "action": { "type": "passthrough" }
+          },
+          // `auth token` / `auth status -t` / `auth git-credential` print the token; login/logout/refresh/
+          // setup-git/switch should be done outside the sandbox anyway
+          {
+            "match": { "argv": { "prefix": [ "auth" ] } },
+            "action": { "type": "respond", "stdout": "blocked by nono profile: `gh auth` subcommands (other than `gh auth status`) are not allowed in sandboxed sessions -- run them outside the sandbox\n" }
+          },
+          // `config get oauth_token` can print the token; `config set` can point browser/editor/pager at a command
+          {
+            "match": { "argv": { "prefix": [ "config" ] } },
+            "action": { "type": "respond", "stdout": "blocked by nono profile: `gh config` is not allowed in sandboxed sessions -- run it outside the sandbox\n" }
+          },
+          // installs + runs arbitrary code with access to the token
+          {
+            "match": { "argv": { "prefix": [ "extension" ] } },
+            "action": { "type": "respond", "stdout": "blocked by nono profile: `gh extension` is not allowed in sandboxed sessions -- manage extensions outside the sandbox\n" }
+          },
+          {
+            "match": { "argv": { "prefix": [ "ext" ] } },
+            "action": { "type": "respond", "stdout": "blocked by nono profile: `gh extension` is not allowed in sandboxed sessions -- manage extensions outside the sandbox\n" }
+          }
+        ],
+        "sandbox": {
+          "fs_read": [
+            // system CA certs for TLS
+            "/etc/ssl/certs",
+            "/usr/share/ca-certificates"
+          ],
+          "fs_read_file": [
+            // DNS resolution
+            "/etc/resolv.conf",
+            "/etc/hosts",
+            "/etc/nsswitch.conf",
+            "/etc/host.conf",
+            "/etc/gai.conf"
+          ],
+          "fs_write": [
+            // auth token (`hosts.yml`), config, state (pre-created in `utils/post-start.sh`)
+            "$HOME/.config/gh",
+            "$HOME/.local/state/gh",
+            "$HOME/.cache/gh",
+            // project files (e.g. `--body-file`, `release upload`, `run download`)
+            "/workspace",
+            // `TMPDIR` is redirected here via `nono-sandbox.env`
+            "$NONO_SANDBOX_TMPDIR"
+          ],
+          // NOTE: unrestricted for DNS (UDP), see `git` network note -- gh is a static go binary, so the
+          // glibc `RES_OPTIONS=use-vc` (DNS over TCP) workaround doesn't apply
+          "network": {
+            "allow_all": true
+          },
+          "environment": {
+            // intentionally not `GH_*` -- e.g. `GH_DEBUG=api` dumps request headers
+            "allow_vars": [ "HOME", "USER", "LOGNAME", "LANG", "LC_*", "TERM", "TMPDIR", "GH_HOST", "GH_REPO" ],
+            "set_vars": {
+              "GH_PROMPT_DISABLED": "1",
+              "GH_NO_UPDATE_NOTIFIER": "1",
+              "GH_PAGER": "",
+              "GH_BROWSER": "",
+              "GH_EDITOR": ""
+            }
+          }
+        }
+      }
+    }
+  },
   "hooks": { },
   "rollback": {
     "exclude_patterns": [ ],
