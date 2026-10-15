@@ -7,9 +7,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	adduser \
 	ca-certificates \
 	curl \
+	git \
 	unzip \
 	make \
 	&& apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Install GitHub CLI
+# https://github.com/cli/cli/releases
+ARG GH_VERSION=latest
+RUN VERSION=$(if [ "$GH_VERSION" = "latest" ]; \
+	then curl -sIL https://github.com/cli/cli/releases/latest | grep -i location | tail -n 1 | grep -oP 'v\K[0-9a-zA-Z.-]+'; \
+	else echo ${GH_VERSION}; \
+	fi) \
+	&& ARCH=$(dpkg --print-architecture) \
+	&& echo "\$VERSION: ${VERSION}, \$ARCH: ${ARCH}" \
+	&& curl -L -O https://github.com/cli/cli/releases/download/v${VERSION}/gh_${VERSION}_linux_${ARCH}.deb \
+	&& curl -L -O https://github.com/cli/cli/releases/download/v${VERSION}/gh_${VERSION}_checksums.txt \
+	&& grep " gh_${VERSION}_linux_${ARCH}.deb\$" gh_${VERSION}_checksums.txt | sha256sum -c - \
+	&& dpkg -i gh_${VERSION}_linux_${ARCH}.deb \
+	&& rm gh_${VERSION}_linux_${ARCH}.deb gh_${VERSION}_checksums.txt
 
 # Install nono for locking down running of agents
 # https://nono.sh/docs/cli/getting_started/installation#debian/ubuntu
