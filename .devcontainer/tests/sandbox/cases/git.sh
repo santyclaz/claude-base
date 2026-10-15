@@ -26,21 +26,16 @@ expect_ok "commit -F <tmp file>"             "${G[@]}" commit -q -F "$SCRATCH/ms
 
 group "git: remotes"
 expect_ok "https ls-remote (public repo)"    git ls-remote https://github.com/git/git.git HEAD
-case $REMOTE_URL in
-  git@*|ssh://*)
-    expect_ok "ssh ls-remote ($REMOTE)"      git -C "$REPO" ls-remote "$REMOTE" HEAD
-    expect_ok "ssh fetch --dry-run ($REMOTE)" git -C "$REPO" fetch --dry-run "$REMOTE"
-    ;;
-  *) skip "ssh remote checks" "$REMOTE is not an ssh remote" ;;
-esac
-
-if [ "$WITH_WRITES" -eq 1 ]; then
-  case $REMOTE_URL in
-    git@*|ssh://*)
-      ref="sandbox-test-$(date +%s)"
-      expect_ok "ssh push throwaway branch"  git -C "$REPO" push -q "$REMOTE" "HEAD:refs/heads/$ref"
-      expect_ok "ssh delete throwaway branch" git -C "$REPO" push -q "$REMOTE" --delete "$ref"
-      ;;
-    *) skip "ssh push" "$REMOTE is not an ssh remote" ;;
-  esac
+if [[ $REMOTE_URL != git@* && $REMOTE_URL != ssh://* ]]; then
+  skip "ssh remote checks" "$REMOTE is not an ssh remote"
+elif [ -z "${SSH_AUTH_SOCK:-}" ]; then
+  skip "ssh remote checks" "SSH_AUTH_SOCK not set"
+else
+  expect_ok "ssh ls-remote ($REMOTE)"        git -C "$REPO" ls-remote "$REMOTE" HEAD
+  expect_ok "ssh fetch --dry-run ($REMOTE)"  git -C "$REPO" fetch --dry-run "$REMOTE"
+  if [ "$WITH_WRITES" -eq 1 ]; then
+    ref="sandbox-test-$(date +%s)"
+    expect_ok "ssh push throwaway branch"    git -C "$REPO" push -q "$REMOTE" "HEAD:refs/heads/$ref"
+    expect_ok "ssh delete throwaway branch"  git -C "$REPO" push -q "$REMOTE" --delete "$ref"
+  fi
 fi

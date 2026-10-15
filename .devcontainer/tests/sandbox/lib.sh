@@ -81,6 +81,10 @@ expect_denied() {
 
 skip() { _skip "$1" "$2"; }
 
+# logged_in <tool> -- per `SANDBOX_TESTS_LOGGED_IN`, set by `run.sh` outside the sandbox. Unset (in-session
+# runs) counts as logged in, so a broken sandbox fails instead of being skipped
+logged_in() { [ -z "${SANDBOX_TESTS_LOGGED_IN+x}" ] || [[ " $SANDBOX_TESTS_LOGGED_IN " == *" $1 "* ]]; }
+
 summary() {
   printf '\n%s passed, %s failed, %s skipped\n' "$PASS" "$FAIL" "$SKIP"
   if [ "$FAIL" -gt 0 ]; then

@@ -1,6 +1,6 @@
 # `gh` command sandbox (+ `git` via `git.from.gh`)
 
-if ! timeout "$TIMEOUT" gh auth status >/dev/null 2>&1; then
+if ! logged_in gh; then
   group "gh"
   skip "gh checks" "not logged in (run \`gh auth login\` outside the sandbox)"
   return 0

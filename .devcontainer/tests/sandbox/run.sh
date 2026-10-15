@@ -14,16 +14,28 @@
 # Already inside a nono sandbox (e.g. run by claude) it runs in place against the *running* profile.
 #
 # Checks are read-only by default. Groups whose preconditions aren't met (not logged in to gh, no ssh
-# agent, ...) are skipped, not failed.
+# agent, ...) are skipped, not failed. Login state can only be checked from a regular terminal, so
+# in-session runs assume every tool is logged in.
 
 set -u
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 DEVCONTAINER=$(cd "$HERE/../.." && pwd)
 
+case " $* " in
+  *" -h "*|*" --help "*) sed -n '2,/^$/s/^# \{0,1\}//p' "$0"; exit 0 ;;
+esac
+
 # --- re-launch under nono (mirrors `claude()` in the Dockerfile) ---
 if [ -z "${NONO_CAP_FILE:-}" ]; then
   command -v nono >/dev/null || { echo "nono not found" >&2; exit 2; }
+
+  # login state is checked here, outside the sandbox -- from inside, the only way to check is through the
+  # very command sandboxes under test, so a broken sandbox would look "logged out" and get skipped
+  logged_in=()
+  [ -s ~/.config/gh/hosts.yml ] && logged_in+=(gh)
+  export SANDBOX_TESTS_LOGGED_IN="${logged_in[*]}"
+
   set -a
   [ -f ~/nono-sandbox.env ] && . ~/nono-sandbox.env
   set +a
@@ -42,7 +54,6 @@ SELECTED=()
 for arg in "$@"; do
   case $arg in
     --with-writes) WITH_WRITES=1 ;;
-    -h|--help) sed -n '2,/^$/s/^# \{0,1\}//p' "$0"; exit 0 ;;
     *) SELECTED+=("$arg") ;;
   esac
 done
@@ -60,7 +71,7 @@ REMOTE=$(git -C "$REPO" remote | head -n 1)
 REMOTE_URL=$(git -C "$REPO" remote get-url "$REMOTE")
 
 # scratch dir inside the sandbox tmp dir (what `TMPDIR` points to in sessions)
-SCRATCH=$(mktemp -d "${NONO_SANDBOX_TMPDIR%/}/sandbox-tests.XXXXXX")
+SCRATCH=$(mktemp -d "${NONO_SANDBOX_TMPDIR%/}/sandbox-tests.XXXXXX") || exit 2
 trap 'rm -rf "$SCRATCH"' EXIT
 
 INSTALLED=~/.config/nono/profiles/claude-with-docker.jsonc
