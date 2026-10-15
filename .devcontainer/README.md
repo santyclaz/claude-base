@@ -80,7 +80,30 @@ policies at runtime. The `claude` command is aliased to:
     Git hooks, `credential.helper`/`core.sshCommand` shell snippets, and `git-lfs` are not modeled
     and will be denied.
   - `gh` gets `~/.config/gh`. `gh auth` (except `gh auth status`), `gh config`, and
-    `gh extension` are blocked. Run `gh auth login` outside the sandbox.
+    `gh extension` are blocked. Run `gh auth login` outside the sandbox. `gh` can call `git` (to
+    resolve the repo/branch, `gh pr checkout`, ...); push branches with `git push` rather than
+    relying on `gh pr create`'s interactive push prompt.
+
+### Sandbox regression tests
+
+`tests/sandbox/run.sh` checks every path above, both what should work (git local/stdin/scratchpad
+files, ssh + https remotes, `gh` -> `git`, docker) and what should be denied
+(credential dirs, ssh agent, direct `ssh`, blocked `gh` subcommands). Run it after any change
+to `utils/claude-with-docker.jsonc` or `nono-sandbox.env`:
+
+```sh
+.devcontainer/tests/sandbox/run.sh                 # all groups (one per file in `tests/sandbox/cases/`)
+.devcontainer/tests/sandbox/run.sh git gh          # selected groups
+.devcontainer/tests/sandbox/run.sh --with-writes   # + push/delete a throwaway branch on the remote
+```
+
+- From a regular terminal it re-launches itself under `nono run` with the **repo copy** of the
+  profile, so you can test edits before copying them to `~/.config/nono/profiles/`
+  (`NONO_PROFILE=claude-with-docker` tests the installed copy instead).
+- Inside a sandboxed session (e.g. run by Claude) it runs in place against the running profile.
+- Checks are read-only by default; groups without a login (e.g. `gh`) are skipped, not failed.
+- Denials are asserted by their message, not just a non-zero exit, and any check fails if a token
+  shows up in its output (redacted in the failure report).
 
 > The `anthropic.claude-code` VS Code extension is intentionally **not** installed — it would run
 > Claude Code outside the nono sandbox. Use the `claude` CLI instead.
