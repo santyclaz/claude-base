@@ -136,6 +136,48 @@
               "GIT_TERMINAL_PROMPT": "0"
             }
           }
+        },
+        // git launched by `gh` (e.g. `gh pr create` / `pr checkout` / `repo clone` inspect + push/fetch the local
+        // repo). Same grants as `sandbox` above -- keep in sync. ssh remotes still go through `ssh.from.git`.
+        // NOTE: https remotes won't authenticate here -- gh injects `credential.helper='!gh auth git-credential'`,
+        // which git can't run (no `gh` edge from git, and `gh auth` is intercepted anyway)
+        "from": {
+          "gh": {
+            "fs_read": [
+              "/usr/lib/git-core",
+              "/usr/share/git-core",
+              "/usr/lib/x86_64-linux-gnu",
+              "/etc/ssl/certs",
+              "/usr/share/ca-certificates"
+            ],
+            "fs_read_file": [
+              "@git:config-files",
+              "/etc/resolv.conf",
+              "/etc/hosts",
+              "/etc/nsswitch.conf",
+              "/etc/host.conf",
+              "/etc/gai.conf"
+            ],
+            "fs_write": [
+              "/workspace",
+              "@git:common-dir",
+              "/tmp/nono-sandbox"
+            ],
+            "exec_paths": [
+              "/usr/lib/git-core"
+            ],
+            "network": {
+              "allow_all": true
+            },
+            "environment": {
+              "allow_vars": [ "HOME", "USER", "LOGNAME", "LANG", "LC_*", "TERM", "TMPDIR", "GIT_AUTHOR_*", "GIT_COMMITTER_*" ],
+              "set_vars": {
+                // gh's env doesn't carry `GIT_CONFIG_NOSYSTEM` from `nono-sandbox.env` (not in gh's `allow_vars`)
+                "GIT_CONFIG_NOSYSTEM": "1",
+                "GIT_TERMINAL_PROMPT": "0"
+              }
+            }
+          }
         }
       },
       // ssh -- only reachable through `git` (e.g. `git fetch` on `git@github.com:...` remotes)
@@ -183,6 +225,8 @@
       // github cli
       "gh": {
         "executable": "/usr/bin/gh",
+        // gh shells out to git to inspect/push the local repo (see `git.from.gh`)
+        "can_use": [ "git" ],
         // block subcommands that can leak or misuse the token in `~/.config/gh` (`respond` = don't run, print msg)
         // NOTE: `match.argv.exact`/`prefix` match against argv[1..] (first match wins)
         "intercept": [
