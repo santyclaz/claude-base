@@ -21,8 +21,8 @@ RUN VERSION=$(if [ "$GH_VERSION" = "latest" ]; \
 	fi) \
 	&& ARCH=$(dpkg --print-architecture) \
 	&& echo "\$VERSION: ${VERSION}, \$ARCH: ${ARCH}" \
-	&& curl -L -O https://github.com/cli/cli/releases/download/v${VERSION}/gh_${VERSION}_linux_${ARCH}.deb \
-	&& curl -L -O https://github.com/cli/cli/releases/download/v${VERSION}/gh_${VERSION}_checksums.txt \
+	&& curl -fL -O https://github.com/cli/cli/releases/download/v${VERSION}/gh_${VERSION}_linux_${ARCH}.deb \
+	&& curl -fL -O https://github.com/cli/cli/releases/download/v${VERSION}/gh_${VERSION}_checksums.txt \
 	&& grep " gh_${VERSION}_linux_${ARCH}.deb\$" gh_${VERSION}_checksums.txt | sha256sum -c - \
 	&& dpkg -i gh_${VERSION}_linux_${ARCH}.deb \
 	&& rm gh_${VERSION}_linux_${ARCH}.deb gh_${VERSION}_checksums.txt
@@ -36,11 +36,15 @@ RUN VERSION=$(if [ "$NONO_VERSION" = "latest" ]; \
 	fi) \
 	&& ARCH=$(dpkg --print-architecture) \
 	&& echo "\$VERSION: ${VERSION}, \$ARCH: ${ARCH}" \
-	&& curl -L -O https://github.com/always-further/nono/releases/download/v${VERSION}/nono-cli_${VERSION}_${ARCH}.deb \
-	&& dpkg -i nono-cli_${VERSION}_${ARCH}.deb
+	&& curl -fL -O https://github.com/always-further/nono/releases/download/v${VERSION}/nono-cli_${VERSION}_${ARCH}.deb \
+	&& curl -fL -O https://github.com/always-further/nono/releases/download/v${VERSION}/SHA256SUMS.txt \
+	&& grep " nono-cli_${VERSION}_${ARCH}.deb\$" SHA256SUMS.txt | sha256sum -c - \
+	&& dpkg -i nono-cli_${VERSION}_${ARCH}.deb \
+	&& rm nono-cli_${VERSION}_${ARCH}.deb SHA256SUMS.txt
 
 # Install herdr for managing agents
 # https://herdr.dev/docs/install/
+# - herdr publishes no checksums file, so verifying against the asset digest GitHub computes on upload
 ARG HERDR_VERSION=latest
 RUN VERSION=$(if [ "$HERDR_VERSION" = "latest" ]; \
 	then curl -sIL https://github.com/herdrdev/herdr/releases/latest | grep -i location | tail -n 1 | grep -oP 'v\K[0-9a-zA-Z.-]+'; \
@@ -48,8 +52,11 @@ RUN VERSION=$(if [ "$HERDR_VERSION" = "latest" ]; \
 	fi) \
 	&& ARCH=$(case "$(dpkg --print-architecture)" in amd64) echo x86_64;; arm64) echo aarch64;; esac) \
 	&& echo "\$VERSION: ${VERSION}, \$ARCH: ${ARCH}" \
-	&& curl -L -o /usr/local/bin/herdr https://github.com/herdrdev/herdr/releases/download/v${VERSION}/herdr-linux-${ARCH} \
-	&& chmod +x /usr/local/bin/herdr
+	&& DIGEST=$(curl -fsSL https://api.github.com/repos/herdrdev/herdr/releases/tags/v${VERSION} | sed -n "/\"name\": \"herdr-linux-${ARCH}\"/,/\"digest\"/p" | grep -oP '"digest": "sha256:\K[0-9a-f]{64}') \
+	&& curl -fL -O https://github.com/herdrdev/herdr/releases/download/v${VERSION}/herdr-linux-${ARCH} \
+	&& echo "${DIGEST}  herdr-linux-${ARCH}" | sha256sum -c - \
+	&& install -m 755 herdr-linux-${ARCH} /usr/local/bin/herdr \
+	&& rm herdr-linux-${ARCH}
 
 ARG USERNAME=eng-user
 RUN adduser $USERNAME
