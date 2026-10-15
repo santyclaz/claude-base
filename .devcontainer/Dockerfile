@@ -75,6 +75,11 @@ USER $USERNAME
 #   since claude installation creates and writes to `~/.claude` directory
 RUN mkdir /home/$USERNAME/.claude-tmp && ln -s /home/$USERNAME/.claude-tmp /home/$USERNAME/.claude
 
+# Pre-create herdr's config dir so it's owned by `$USERNAME`
+# - `compose.yml` bind-mounts only `config.toml` into it, and docker creates any missing parent dirs
+#   of a mount target as root, which leaves herdr unable to write its logs/state next to the config
+RUN mkdir -p /home/$USERNAME/.config/herdr
+
 # Install claude code
 ARG CLAUDE_CODE_VERSION=latest
 RUN curl -fsSL https://claude.ai/install.sh | bash -s ${CLAUDE_CODE_VERSION}

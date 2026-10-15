@@ -17,4 +17,5 @@ services:
     volumes:
       - ..:/workspace:cached
       - ${CLAUDE_CONFIG_MOUNT_DIR:-/dev/null}:/home/eng-user/.claude-mount
+      - ${HERDR_CONFIG_PATH:-/dev/null}:/home/eng-user/.config/herdr/config.toml
     command: sleep infinity
