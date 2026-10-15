@@ -113,8 +113,10 @@
             "/workspace",
             // worktree object store when the session starts inside a linked worktree
             "@git:common-dir",
-            // `TMPDIR` is redirected here via `nono-sandbox.env`
-            "$NONO_SANDBOX_TMPDIR"
+            // `TMPDIR` is redirected here via `nono-sandbox.env` (`NONO_SANDBOX_TMPDIR` in the Dockerfile). Literal path
+            // since nono only expands its own vars (`$HOME`, `$TMPDIR`, `$XDG_*`, ...) -- and `$TMPDIR` would fall
+            // back to all of `/tmp` if nono were ever started without `nono-sandbox.env`
+            "/tmp/nono-sandbox"
           ],
           "exec_paths": [
             "/usr/lib/git-core"
@@ -231,8 +233,10 @@
             "$HOME/.cache/gh",
             // project files (e.g. `--body-file`, `release upload`, `run download`)
             "/workspace",
-            // `TMPDIR` is redirected here via `nono-sandbox.env`
-            "$NONO_SANDBOX_TMPDIR"
+            // `TMPDIR` is redirected here via `nono-sandbox.env` (`NONO_SANDBOX_TMPDIR` in the Dockerfile). Literal path
+            // since nono only expands its own vars (`$HOME`, `$TMPDIR`, `$XDG_*`, ...) -- and `$TMPDIR` would fall
+            // back to all of `/tmp` if nono were ever started without `nono-sandbox.env`
+            "/tmp/nono-sandbox"
           ],
           // NOTE: unrestricted for DNS (UDP), see `git` network note -- gh is a static go binary, so the
           // glibc `RES_OPTIONS=use-vc` (DNS over TCP) workaround doesn't apply
