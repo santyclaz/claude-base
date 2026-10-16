@@ -95,7 +95,8 @@ COPY utils/claude-with-docker.jsonc /home/$USERNAME/.config/nono/profiles/
 # Dedicated writable dirs for the nono sandbox when running agents
 # - `NONO_SANDBOX_DIR` is more permanent - survives container spin-downs
 # - `NONO_SANDBOX_TMPDIR` is more ephemeral - may not survive container spin-downs
-# - referenced in: `claude` function below, `.devcontainer/nono-sandbox.env`, and `utils/post-start.sh`
+# - referenced in: `claude` function below, `.devcontainer/nono-sandbox.env`, `utils/post-start.sh`, and
+#   (as a literal path for `NONO_SANDBOX_TMPDIR`) `utils/claude-with-docker.jsonc` command sandboxes
 ENV NONO_SANDBOX_DIR=/home/$USERNAME/nono-sandbox/
 ENV NONO_SANDBOX_TMPDIR=/tmp/nono-sandbox/
 # IMPORTANT: Intentionally making copy of `nono-sandbox.env` and setting permissions for security purposes

@@ -6,6 +6,11 @@
 #   is mounted as an in-memory, tmpfs
 # 2. prefer to keep all the related "pre-created" stuff together
 mkdir -p /home/$USER/.docker
+# `gh` command sandbox write grants (see `command_policies` in `utils/claude-with-docker.jsonc`)
+mkdir -p /home/$USER/.config/gh /home/$USER/.local/state/gh /home/$USER/.cache/gh
+# `ssh` command sandbox read grant (only trusts hosts accepted here, outside the sandbox)
+mkdir -p -m 700 /home/$USER/.ssh
+touch /home/$USER/.ssh/known_hosts
 mkdir -p "$NONO_SANDBOX_DIR"
 mkdir -p "$NONO_SANDBOX_TMPDIR"
 
